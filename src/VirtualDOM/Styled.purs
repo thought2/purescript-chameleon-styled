@@ -239,7 +239,7 @@ derive instance (Functor html) => Functor (StyleT html)
 
 derive newtype instance (Html html) => Html (StyleT html)
 
-instance RegisterStyleMap html => RegisterStyleMap (StyleT html) where
+instance RegisterStyleMap (StyleT html) where
   registerStyleMap styleMap (StyleT accumT) =
     StyleT $ tellAccum [ styleMap ] accumT
 
