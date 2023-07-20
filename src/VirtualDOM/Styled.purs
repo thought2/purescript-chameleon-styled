@@ -38,8 +38,9 @@ import VirtualDOM as VD
 import VirtualDOM.Class as VDC
 import VirtualDOM.HTML.Attributes as VP
 import VirtualDOM.HTML.Elements as VDE
-import VirtualDOM.Transformers.Accum.Class (tellAccum)
-import VirtualDOM.Transformers.Accum.Trans (AccumT, runAccumT)
+import VirtualDOM.Transformers.Accum.Class (class Accum, class TellAccum, censorAccum, tellAccum)
+import VirtualDOM.Transformers.Accum.Trans (AccumT(..), runAccumT)
+import VirtualDOM.Transformers.OutMsg.Class (class OutMsg, class RunOutMsg, fromOutHtml, runOutMsg)
 import VirtualDOM.Types (ElemKeyedNode, ElemLeaf, ElemNode, ElemKeyedLeaf)
 
 class IsStyle a where
@@ -250,6 +251,18 @@ runStyleT (StyleT accumT) =
       [ viewStylemap (foldStyleMaps styleMaps)
       , html
       ]
+
+instance (TellAccum acc html) => TellAccum acc (StyleT html) where
+  tellAccum acc (StyleT (AccumT styleMaps html)) = StyleT $ (AccumT styleMaps (tellAccum acc html))
+
+instance (Accum acc html) => Accum acc (StyleT html) where
+  censorAccum f (StyleT (AccumT styleMaps html)) = StyleT $ (AccumT styleMaps (censorAccum f html))
+
+instance (OutMsg out html) => OutMsg out (StyleT html) where
+  fromOutHtml (StyleT (AccumT styleMaps html)) = StyleT $ (AccumT styleMaps (fromOutHtml html))
+
+instance (RunOutMsg out html) => RunOutMsg out (StyleT html) where
+  runOutMsg (StyleT (AccumT styleMaps html)) = StyleT $ (AccumT styleMaps (runOutMsg html))
 
 -------------------------------------------------------------------------------
 -- Style Elements
