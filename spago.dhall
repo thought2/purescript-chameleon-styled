@@ -1,6 +1,14 @@
 { name = "virtual-dom-styled"
 , dependencies =
-  [ "prelude"
+  [ "arrays"
+  , "foldable-traversable"
+  , "maybe"
+  , "newtype"
+  , "prelude"
+  , "strings"
+  , "tuples"
+  , "unordered-collections"
+  , "virtual-dom"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs" ]

@@ -1,20 +1,45 @@
-module VirtualDOM.Styled where
+module VirtualDOM.Styled
+  ( Anim
+  , ClassName(..)
+  , InlineStyle(..)
+  , Style
+  , StyleDecl
+  , StyleMap
+  , StyleT
+  , anim
+  , class IsStyle
+  , class RegisterStyleMap
+  , decl
+  , declWith
+  , registerStyleMap
+  , runStyleT
+  , styleKeyedLeaf
+  , styleKeyedNode
+  , styleLeaf
+  , styleNode
+  , toStyle
+  ) where
 
 import Prelude
 
 import Data.Array as Array
-import Data.Foldable (fold)
+import Data.Foldable (fold, foldr)
 import Data.HashMap (HashMap)
 import Data.HashMap as HashMap
 import Data.Hashable (class Hashable, hash)
 import Data.Maybe (Maybe(..), isJust)
 import Data.Newtype (class Newtype, unwrap)
+import Data.String (Pattern(..), Replacement(..))
 import Data.String as Str
+import Data.Tuple (Tuple(..))
 import Data.Tuple.Nested (type (/\), (/\))
 import VirtualDOM (class Html, Prop(..))
+import VirtualDOM as VD
 import VirtualDOM.Class as VDC
 import VirtualDOM.HTML.Attributes as VP
 import VirtualDOM.HTML.Elements as VDE
+import VirtualDOM.Transformers.Accum.Class (tellAccum)
+import VirtualDOM.Transformers.Accum.Trans (AccumT, runAccumT)
 import VirtualDOM.Types (ElemKeyedNode, ElemLeaf, ElemNode, ElemKeyedLeaf)
 
 class IsStyle a where
@@ -32,7 +57,18 @@ newtype Style = Style
   { inline :: Array InlineStyle
   , classes :: Array ClassName
   , declarations :: Array StyleDecl
+  , animations :: Array Anim
   }
+
+newtype AnimName = AnimName String
+
+newtype HashedAnimName = HashedAnimName String
+
+newtype AnimDecl = AnimDecl (Array AnimStep)
+
+newtype Anim = Anim (AnimName /\ AnimDecl)
+
+newtype AnimStep = AnimStep (String /\ Array String)
 
 -------------------------------------------------------------------------------
 -- StyleMap
@@ -41,32 +77,110 @@ newtype Style = Style
 class RegisterStyleMap (html :: Type -> Type) where
   registerStyleMap :: forall msg. StyleMap -> html msg -> html msg
 
-type StyleMap = HashMap ClassName StyleDecl
+newtype StyleMap = StyleMap { anim :: AnimMap, decl :: DeclMap }
+
+type DeclMap = HashMap ClassName StyleDecl
+
+type AnimMap = HashMap HashedAnimName AnimDecl
+
+replaceIds :: HashMap String String -> StyleDecl -> StyleDecl
+replaceIds replaceMap (StyleDecl styleDecls) =
+  StyleDecl (map replaceEntry styleDecls)
+
+  where
+  replaceEntry :: Maybe Selector /\ Array String -> Maybe Selector /\ Array String
+  replaceEntry (selector /\ strs) =
+    selector /\ map (replaceByMap replaceMap) strs
 
 getStyleMap :: Style -> StyleMap /\ Style
-getStyleMap style@(Style { declarations }) =
+getStyleMap style@(Style { declarations, animations }) =
   styleMap /\ newStyle
   where
   styleMap :: StyleMap
-  styleMap = HashMap.fromArrayBy mkClassName identity declarations
+  styleMap = StyleMap
+    { decl: declMap
+    , anim: animMap
+    }
+
+  animInfo :: Array (HashedAnimName /\ AnimName /\ AnimDecl)
+  animInfo = animations
+    # map
+        ( \(Anim (animName /\ animDecl)) ->
+            mkHashedAnimName animDecl /\ animName /\ animDecl
+        )
+
+  declMap :: DeclMap
+  declMap = HashMap.fromArrayBy mkClassName identity declarationsReplaced
+
+  declarationsReplaced :: Array StyleDecl
+  declarationsReplaced = map (replaceIds animReplaceMap) declarations
+
+  animMap :: AnimMap
+  animMap =
+    HashMap.fromArrayBy
+      (\(key /\ _) -> key)
+      (\(_ /\ _ /\ value) -> value)
+      animInfo
+
+  animReplaceMap :: HashMap String String
+  animReplaceMap =
+    HashMap.fromArrayBy
+      (\(_ /\ AnimName animName /\ _) -> "$" <> animName)
+      (\(HashedAnimName hashedAnimName /\ _ /\ _) -> hashedAnimName)
+      animInfo
+
+  mkHashedAnimName :: AnimDecl -> HashedAnimName
+  mkHashedAnimName animDecl = HashedAnimName (prefixAnim <> show (hash animDecl))
 
   mkClassName :: StyleDecl -> ClassName
   mkClassName styleDecl = ClassName (prefix <> show (hash styleDecl))
 
   newStyle :: Style
-  newStyle = style
-    # \(Style rec) -> Style $ rec
-        { declarations = []
-        , classes = HashMap.keys styleMap
-        }
+  newStyle =
+    let
+      StyleMap { decl } = styleMap
+    in
+      style
+        # \(Style rec) -> Style $ rec
+            { declarations = []
+            , classes = HashMap.keys decl
+            }
 
   prefix = "hashed"
+  prefixAnim = "hashed-anim"
 
 printStyleMap :: StyleMap -> String
-printStyleMap styleMap =
-  HashMap.toArrayBy printEntry styleMap
+printStyleMap (StyleMap styleMap) =
+  printDeclMap styleMap.decl <> "\n\n" <> printAnimMap styleMap.anim
+
+printAnimMap :: AnimMap -> String
+printAnimMap animMap =
+  HashMap.toArrayBy printEntry animMap
+    # Str.joinWith "\n"
+
+  where
+  printEntry :: HashedAnimName -> AnimDecl -> String
+  printEntry (HashedAnimName animName) (AnimDecl animSteps) =
+    Str.joinWith "\n"
+      [ "@keyframes " <> animName <> " {"
+      , Str.joinWith "\n" (map printAnimStep animSteps)
+      , "}"
+      ]
+
+  printAnimStep :: AnimStep -> String
+  printAnimStep (AnimStep (stepName /\ strs)) =
+    Str.joinWith "\n"
+      [ stepName <> " {"
+      , Str.joinWith ";" strs
+      , "}"
+      ]
+
+printDeclMap :: DeclMap -> String
+printDeclMap declMap =
+  HashMap.toArrayBy printEntry declMap
     # join
     # Str.joinWith "\n"
+
   where
   printEntry :: ClassName -> StyleDecl -> Array String
   printEntry className (StyleDecl styleDecls) =
@@ -85,6 +199,18 @@ printStyleMap styleMap =
       , "\n}"
       ]
 
+foldStyleMaps :: Array StyleMap -> StyleMap
+foldStyleMaps = foldr next init
+  where
+  next :: StyleMap -> StyleMap -> StyleMap
+  next (StyleMap styleMap1) (StyleMap styleMap2) = StyleMap
+    { anim: HashMap.union styleMap1.anim styleMap2.anim
+    , decl: HashMap.union styleMap1.decl styleMap2.decl
+    }
+
+  init :: StyleMap
+  init = StyleMap { anim: HashMap.empty, decl: HashMap.empty }
+
 viewStylemap :: forall html msg. Html html => StyleMap -> html msg
 viewStylemap styleMap =
   VDE.style_ [ VDC.text $ printStyleMap styleMap ]
@@ -94,6 +220,36 @@ decl strs = StyleDecl [ Nothing /\ strs ]
 
 declWith :: String -> Array String -> StyleDecl
 declWith selector strs = StyleDecl [ Just (Selector selector) /\ strs ]
+
+anim :: String -> Array (String /\ Array String) -> Anim
+anim animName steps = Anim
+  ( AnimName animName /\
+      AnimDecl (map (\(stepName /\ strs) -> AnimStep (stepName /\ strs)) steps)
+  )
+
+-------------------------------------------------------------------------------
+-- Impl
+-------------------------------------------------------------------------------
+
+newtype StyleT html a = StyleT (AccumT (Array StyleMap) html a)
+
+derive instance (Functor html) => Functor (StyleT html)
+
+derive newtype instance (Html html) => Html (StyleT html)
+
+instance RegisterStyleMap html => RegisterStyleMap (StyleT html) where
+  registerStyleMap styleMap (StyleT accumT) =
+    StyleT $ tellAccum [ styleMap ] accumT
+
+runStyleT :: forall html a. Html html => StyleT html a -> html a
+runStyleT (StyleT accumT) =
+  let
+    html /\ styleMaps = runAccumT accumT
+  in
+    VD.div_
+      [ viewStylemap (foldStyleMaps styleMaps)
+      , html
+      ]
 
 -------------------------------------------------------------------------------
 -- Style Elements
@@ -177,6 +333,15 @@ derive newtype instance Semigroup Style
 
 derive newtype instance Monoid Style
 
+derive newtype instance Hashable HashedAnimName
+derive instance Eq HashedAnimName
+
+derive newtype instance Hashable AnimDecl
+derive instance Eq AnimDecl
+
+derive newtype instance Hashable AnimStep
+derive instance Eq AnimStep
+
 derive newtype instance Hashable ClassName
 derive instance Eq ClassName
 
@@ -207,6 +372,10 @@ instance IsStyle ClassName where
 instance IsStyle StyleDecl where
   toStyle c = mempty
     # \(Style rec) -> Style $ rec { declarations = [ c ] }
+
+instance IsStyle Anim where
+  toStyle anim' = mempty
+    # \(Style rec) -> Style $ rec { animations = [ anim' ] }
 
 instance (IsStyle a, IsStyle b) => IsStyle (a /\ b) where
   toStyle (s1 /\ s2) = toStyle s1 <> toStyle s2
@@ -248,3 +417,8 @@ addStyle style props =
   mapClassName = case _ of
     Just (Attr "className" cs) -> classesToProp (classes <> [ ClassName cs ])
     _ -> classesToProp classes
+
+replaceByMap :: HashMap String String -> String -> String
+replaceByMap replaceMap str =
+  HashMap.toArrayBy Tuple replaceMap
+    # foldr (\(key /\ value) -> Str.replace (Pattern key) (Replacement value)) str
