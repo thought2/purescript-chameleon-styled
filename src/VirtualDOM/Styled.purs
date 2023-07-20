@@ -40,6 +40,7 @@ import VirtualDOM.HTML.Attributes as VP
 import VirtualDOM.HTML.Elements as VDE
 import VirtualDOM.Transformers.Accum.Class (class Accum, class TellAccum, censorAccum, tellAccum)
 import VirtualDOM.Transformers.Accum.Trans (AccumT(..), runAccumT)
+import VirtualDOM.Transformers.Ctx.Trans (CtxT(..))
 import VirtualDOM.Transformers.OutMsg.Class (class OutMsg, class RunOutMsg, fromOutHtml, runOutMsg)
 import VirtualDOM.Types (ElemKeyedNode, ElemLeaf, ElemNode, ElemKeyedLeaf)
 
@@ -263,6 +264,12 @@ instance (OutMsg out html) => OutMsg out (StyleT html) where
 
 instance (RunOutMsg out html) => RunOutMsg out (StyleT html) where
   runOutMsg (StyleT (AccumT styleMaps html)) = StyleT $ (AccumT styleMaps (runOutMsg html))
+
+---
+
+instance (RegisterStyleMap html) => RegisterStyleMap (CtxT ctx html) where
+  registerStyleMap styleMap (CtxT mkHtml) = CtxT
+    \ctx -> registerStyleMap styleMap $ mkHtml ctx
 
 -------------------------------------------------------------------------------
 -- Style Elements
