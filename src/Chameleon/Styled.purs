@@ -1,4 +1,4 @@
-module VirtualDOM.Styled
+module Chameleon.Styled
   ( Anim
   , ClassName(..)
   , InlineStyle(..)
@@ -33,16 +33,16 @@ import Data.String (Pattern(..), Replacement(..))
 import Data.String as Str
 import Data.Tuple (Tuple(..))
 import Data.Tuple.Nested (type (/\), (/\))
-import VirtualDOM (class Html, Prop(..))
-import VirtualDOM as VD
-import VirtualDOM.Class as VDC
-import VirtualDOM.HTML.Attributes as VP
-import VirtualDOM.HTML.Elements as VDE
-import VirtualDOM.Transformers.Accum.Class (class Accum, class TellAccum, censorAccum, tellAccum)
-import VirtualDOM.Transformers.Accum.Trans (AccumT(..), runAccumT)
-import VirtualDOM.Transformers.Ctx.Trans (CtxT(..))
-import VirtualDOM.Transformers.OutMsg.Class (class OutMsg, class RunOutMsg, fromOutHtml, runOutMsg)
-import VirtualDOM.Types (ElemKeyedNode, ElemLeaf, ElemNode, ElemKeyedLeaf)
+import Chameleon (class Html, Prop(..))
+import Chameleon as VD
+import Chameleon.Class as VDC
+import Chameleon.HTML.Attributes as VP
+import Chameleon.HTML.Elements as VDE
+import Chameleon.Transformers.Accum.Class (class Accum, class TellAccum, censorAccum, tellAccum)
+import Chameleon.Transformers.Accum.Trans (AccumT(..), runAccumT)
+import Chameleon.Transformers.Ctx.Trans (CtxT(..))
+import Chameleon.Transformers.OutMsg.Class (class OutMsg, class RunOutMsg, fromOutHtml, runOutMsg)
+import Chameleon.Types (ElemKeyedNode, ElemLeaf, ElemNode, ElemKeyedLeaf)
 
 class IsStyle a where
   toStyle :: a -> Style

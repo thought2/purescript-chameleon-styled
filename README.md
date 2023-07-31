@@ -1,3 +1,3 @@
-# purescript-virtual-dom-styled
+# purescript-chameleon-styled
 
-"Styled elements" for [virtual-dom](https://github.com/thought2/purescript-virtual-dom) views.
+"Styled elements" for [chameleon](https://github.com/thought2/purescript-chameleon) views.
