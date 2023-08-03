@@ -22,6 +22,18 @@ module Chameleon.Styled
 
 import Prelude
 
+import Chameleon (class Html, class MapMaybe, Prop(..))
+import Chameleon as VD
+import Chameleon.Class as VDC
+import Chameleon.HTML.Attributes as VP
+import Chameleon.HTML.Elements as VDE
+import Chameleon.Transformers.Accum.Class (class Accum, class TellAccum, censorAccum, tellAccum)
+import Chameleon.Transformers.Accum.Trans (AccumT(..), runAccumT)
+import Chameleon.Transformers.Ctx.Trans (CtxT(..))
+import Chameleon.Transformers.FunctorTrans.Class (class FunctorTrans)
+import Chameleon.Transformers.FunctorTrans.Class as FT
+import Chameleon.Transformers.OutMsg.Class (class OutMsg, class RunOutMsg, fromOutHtml, runOutMsg)
+import Chameleon.Types (ElemKeyedNode, ElemLeaf, ElemNode, ElemKeyedLeaf)
 import Data.Array as Array
 import Data.Foldable (fold, foldr)
 import Data.HashMap (HashMap)
@@ -33,16 +45,6 @@ import Data.String (Pattern(..), Replacement(..))
 import Data.String as Str
 import Data.Tuple (Tuple(..))
 import Data.Tuple.Nested (type (/\), (/\))
-import Chameleon (class Html, Prop(..))
-import Chameleon as VD
-import Chameleon.Class as VDC
-import Chameleon.HTML.Attributes as VP
-import Chameleon.HTML.Elements as VDE
-import Chameleon.Transformers.Accum.Class (class Accum, class TellAccum, censorAccum, tellAccum)
-import Chameleon.Transformers.Accum.Trans (AccumT(..), runAccumT)
-import Chameleon.Transformers.Ctx.Trans (CtxT(..))
-import Chameleon.Transformers.OutMsg.Class (class OutMsg, class RunOutMsg, fromOutHtml, runOutMsg)
-import Chameleon.Types (ElemKeyedNode, ElemLeaf, ElemNode, ElemKeyedLeaf)
 
 class IsStyle a where
   toStyle :: a -> Style
@@ -235,9 +237,15 @@ anim animName steps = Anim
 
 newtype StyleT html a = StyleT (AccumT (Array StyleMap) html a)
 
+instance FunctorTrans StyleT where
+  lift :: forall html a. Functor html => html a -> StyleT html a
+  lift html = StyleT $ FT.lift html
+
 derive instance (Functor html) => Functor (StyleT html)
 
 derive newtype instance (Html html) => Html (StyleT html)
+
+derive newtype instance (Html html) => MapMaybe (StyleT html)
 
 instance RegisterStyleMap (StyleT html) where
   registerStyleMap styleMap (StyleT accumT) =
