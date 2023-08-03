@@ -2,7 +2,7 @@ package:
   dependencies:
     - arrays: '>=7.2.1 <8.0.0'
     - chameleon: '>=0.0.5 <0.0.6'
-    - chameleon-transformers: '>=0.0.4 <0.0.5'
+    - chameleon-transformers: '>=0.1.0 <1.0.0'
     - foldable-traversable: '>=6.0.0 <7.0.0'
     - maybe: '>=6.0.0 <7.0.0'
     - newtype: '>=5.0.0 <6.0.0'
@@ -26,19 +26,8 @@ package:
       githubOwner: thought2
       githubRepo: purescript-chameleon-styled
 workspace:
-  extra_packages:
-    chameleon-transformers:
-      git: https://github.com/thought2/purescript-chameleon-transformers.git
-      ref: 09b5ba0a721065dd3ca2d055c956c6c58dc0c7c6
-      dependencies:
-        - chameleon: '>=0.0.5 <0.0.6'
-        - foldable-traversable: '>=6.0.0 <7.0.0'
-        - maybe: '>=6.0.0 <7.0.0'
-        - prelude: '>=6.0.1 <7.0.0'
-        - these: '>=6.0.0 <7.0.0'
-        - transformers: '>=6.0.0 <7.0.0'
-        - tuples: '>=7.0.0 <8.0.0'
+  extra_packages: {}
   package_set:
-    registry: 32.0.0
+    registry: 32.1.0
   build_opts:
     pedantic_packages: true
