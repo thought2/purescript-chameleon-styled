@@ -8,7 +8,7 @@ module Chameleon.Styled
   , StyleT
   , anim
   , class IsStyle
-  , class RegisterStyleMap
+  , class HtmlStyled
   , decl
   , declWith
   , registerStyleMap
@@ -78,7 +78,7 @@ newtype AnimStep = AnimStep (String /\ Array String)
 -- StyleMap
 -------------------------------------------------------------------------------
 
-class RegisterStyleMap (html :: Type -> Type) where
+class Html html <= HtmlStyled (html :: Type -> Type) where
   registerStyleMap :: forall msg. StyleMap -> html msg -> html msg
 
 newtype StyleMap = StyleMap { anim :: AnimMap, decl :: DeclMap }
@@ -247,7 +247,7 @@ derive newtype instance (Html html) => Html (StyleT html)
 
 derive newtype instance (Html html) => MapMaybe (StyleT html)
 
-instance RegisterStyleMap (StyleT html) where
+instance Html html => HtmlStyled (StyleT html) where
   registerStyleMap styleMap (StyleT accumT) =
     StyleT $ tellAccum [ styleMap ] accumT
 
@@ -275,7 +275,7 @@ instance (RunOutMsg out html) => RunOutMsg out (StyleT html) where
 
 ---
 
-instance (RegisterStyleMap html) => RegisterStyleMap (CtxT ctx html) where
+instance (HtmlStyled html) => HtmlStyled (CtxT ctx html) where
   registerStyleMap styleMap (CtxT mkHtml) = CtxT
     \ctx -> registerStyleMap styleMap $ mkHtml ctx
 
@@ -286,7 +286,7 @@ instance (RegisterStyleMap html) => RegisterStyleMap (CtxT ctx html) where
 styleNode
   :: forall html style a
    . Html html
-  => RegisterStyleMap html
+  => HtmlStyled html
   => IsStyle style
   => ElemNode html a
   -> style
@@ -303,7 +303,7 @@ styleNode elem someStyle props children =
 styleLeaf
   :: forall html style a
    . Html html
-  => RegisterStyleMap html
+  => HtmlStyled html
   => IsStyle style
   => ElemLeaf html a
   -> style
@@ -319,7 +319,7 @@ styleLeaf elem someStyle props =
 styleKeyedNode
   :: forall html style a
    . Html html
-  => RegisterStyleMap html
+  => HtmlStyled html
   => IsStyle style
   => ElemKeyedNode html a
   -> style
@@ -336,7 +336,7 @@ styleKeyedNode elem someStyle props children =
 styleKeyedLeaf
   :: forall html style a
    . Html html
-  => RegisterStyleMap html
+  => HtmlStyled html
   => IsStyle style
   => ElemKeyedLeaf html a
   -> style
