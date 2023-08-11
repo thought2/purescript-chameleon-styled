@@ -20,7 +20,7 @@ package:
       - effect
     main: Test.Main
   publish:
-    version: 1.0.0
+    version: 2.0.0-rc.1
     license: BSD-3-Clause
     location:
       githubOwner: thought2
@@ -31,3 +31,4 @@ workspace:
     registry: 32.1.0
   build_opts:
     pedantic_packages: true
+    persist_warnings: true

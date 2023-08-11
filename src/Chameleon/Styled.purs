@@ -7,8 +7,10 @@ module Chameleon.Styled
   , StyleMap
   , StyleT
   , anim
-  , class IsStyle
   , class HtmlStyled
+  , class IsDecl
+  , toDecl
+  , class IsStyle
   , decl
   , declWith
   , registerStyleMap
@@ -23,7 +25,7 @@ module Chameleon.Styled
 import Prelude
 
 import Chameleon (class Html, class MapMaybe, Prop(..))
-import Chameleon as VD
+import Chameleon as C
 import Chameleon.Class as VDC
 import Chameleon.HTML.Attributes as VP
 import Chameleon.HTML.Elements as VDE
@@ -219,11 +221,12 @@ viewStylemap :: forall html msg. Html html => StyleMap -> html msg
 viewStylemap styleMap =
   VDE.style_ [ VDC.text $ printStyleMap styleMap ]
 
-decl :: Array String -> StyleDecl
-decl strs = StyleDecl [ Nothing /\ strs ]
+decl :: forall decl. IsDecl decl => decl -> StyleDecl
+decl dec = StyleDecl [ Nothing /\ toDecl dec ]
 
-declWith :: String -> Array String -> StyleDecl
-declWith selector strs = StyleDecl [ Just (Selector selector) /\ strs ]
+declWith :: forall decl. IsDecl decl => String -> decl -> StyleDecl
+declWith selector dec = StyleDecl
+  [ Just (Selector selector) /\ toDecl dec ]
 
 anim :: String -> Array (String /\ Array String) -> Anim
 anim animName steps = Anim
@@ -256,7 +259,7 @@ runStyleT (StyleT accumT) =
   let
     html /\ styleMaps = runAccumT accumT
   in
-    VD.div_
+    C.div_
       [ viewStylemap (foldStyleMaps styleMaps)
       , html
       ]
@@ -407,6 +410,18 @@ instance IsStyle Anim where
 
 instance (IsStyle a, IsStyle b) => IsStyle (a /\ b) where
   toStyle (s1 /\ s2) = toStyle s1 <> toStyle s2
+
+class IsDecl a where
+  toDecl :: a -> Array String
+
+instance IsDecl String where
+  toDecl str = [ str ]
+
+instance IsDecl a => IsDecl (Array a) where
+  toDecl xs = fold (toDecl <$> xs)
+
+instance IsDecl Unit where
+  toDecl _ = []
 
 -------------------------------------------------------------------------------
 -- Utils
