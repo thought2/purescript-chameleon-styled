@@ -2,7 +2,7 @@ package:
   dependencies:
     - arrays: '>=7.2.1 <8.0.0'
     - chameleon: '>=0.0.5 <0.0.6'
-    - chameleon-transformers: '>=0.1.0 <1.0.0'
+    - chameleon-transformers: '>=1.0.0 <2.0.0'
     - foldable-traversable: '>=6.0.0 <7.0.0'
     - maybe: '>=6.0.0 <7.0.0'
     - newtype: '>=5.0.0 <6.0.0'
