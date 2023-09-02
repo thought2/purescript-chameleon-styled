@@ -1,6 +1,8 @@
 module Chameleon.Styled.Core
   ( Anim
   , ClassName(..)
+  , ElemName(..)
+  , ElemScope(..)
   , InlineStyle(..)
   , Style
   , StyleDecl
@@ -9,16 +11,20 @@ module Chameleon.Styled.Core
   , anim
   , class HtmlStyled
   , class IsDecl
-  , mergeDecl
   , class IsStyle
   , decl
   , declWith
+  , mergeDecl
   , registerStyleMap
   , runStyleT
   , styleKeyedLeaf
+  , styleKeyedLeafNamed
   , styleKeyedNode
+  , styleKeyedNodeNamed
   , styleLeaf
+  , styleLeafNamed
   , styleNode
+  , styleNodeNamed
   , toStyle
   ) where
 
@@ -75,6 +81,10 @@ newtype AnimDecl = AnimDecl (Array AnimStep)
 newtype Anim = Anim (AnimName /\ AnimDecl)
 
 newtype AnimStep = AnimStep (String /\ Array String)
+
+newtype ElemName = ElemName String
+
+newtype ElemScope = ElemScope String
 
 -------------------------------------------------------------------------------
 -- StyleMap
@@ -294,10 +304,23 @@ styleNode
   => ElemNode html a
   -> style
   -> ElemNode html a
-styleNode elem someStyle props children =
+styleNode =
+  styleNodeNamed Nothing Nothing
+
+styleNodeNamed
+  :: forall html style a
+   . Html html
+  => HtmlStyled html
+  => IsStyle style
+  => Maybe ElemName
+  -> Maybe ElemScope
+  -> ElemNode html a
+  -> style
+  -> ElemNode html a
+styleNodeNamed elemName elemScope elem someStyle props children =
   registerStyleMap styleMap $
     elem
-      (addStyle newStyle props)
+      (addIds elemName elemScope $ addStyle newStyle props)
       children
   where
   oldStyle = toStyle someStyle
@@ -311,10 +334,23 @@ styleLeaf
   => ElemLeaf html a
   -> style
   -> ElemLeaf html a
-styleLeaf elem someStyle props =
+styleLeaf =
+  styleLeafNamed Nothing Nothing
+
+styleLeafNamed
+  :: forall html style a
+   . Html html
+  => HtmlStyled html
+  => IsStyle style
+  => Maybe ElemName
+  -> Maybe ElemScope
+  -> ElemLeaf html a
+  -> style
+  -> ElemLeaf html a
+styleLeafNamed elemName elemScope elem someStyle props =
   registerStyleMap styleMap $
     elem
-      (addStyle newStyle props)
+      (addIds elemName elemScope $ addStyle newStyle props)
   where
   oldStyle = toStyle someStyle
   styleMap /\ newStyle = getStyleMap oldStyle
@@ -327,10 +363,23 @@ styleKeyedNode
   => ElemKeyedNode html a
   -> style
   -> ElemKeyedNode html a
-styleKeyedNode elem someStyle props children =
+styleKeyedNode =
+  styleKeyedNodeNamed Nothing Nothing
+
+styleKeyedNodeNamed
+  :: forall html style a
+   . Html html
+  => HtmlStyled html
+  => IsStyle style
+  => Maybe ElemName
+  -> Maybe ElemScope
+  -> ElemKeyedNode html a
+  -> style
+  -> ElemKeyedNode html a
+styleKeyedNodeNamed elemName elemScope elem someStyle props children =
   registerStyleMap styleMap $
     elem
-      (addStyle newStyle props)
+      (addIds elemName elemScope $ addStyle newStyle props)
       children
   where
   oldStyle = toStyle someStyle
@@ -344,10 +393,22 @@ styleKeyedLeaf
   => ElemKeyedLeaf html a
   -> style
   -> ElemKeyedLeaf html a
-styleKeyedLeaf elem someStyle props =
+styleKeyedLeaf = styleKeyedLeafNamed Nothing Nothing
+
+styleKeyedLeafNamed
+  :: forall html style a
+   . Html html
+  => HtmlStyled html
+  => IsStyle style
+  => Maybe ElemName
+  -> Maybe ElemScope
+  -> ElemKeyedLeaf html a
+  -> style
+  -> ElemKeyedLeaf html a
+styleKeyedLeafNamed elemName elemScope elem someStyle props =
   registerStyleMap styleMap $
     elem
-      (addStyle newStyle props)
+      (addIds elemName elemScope $ addStyle newStyle props)
   where
   oldStyle = toStyle someStyle
   styleMap /\ newStyle = getStyleMap oldStyle
@@ -460,6 +521,22 @@ addStyle style props =
   mapClassName = case _ of
     Just (Attr "className" cs) -> classesToProp (classes <> [ ClassName cs ])
     _ -> classesToProp classes
+
+addIds :: forall a. Maybe ElemName -> Maybe ElemScope -> Array (Prop a) -> Array (Prop a)
+addIds elemName elemScope props =
+  let
+    elemName' = case elemName of
+      Nothing -> []
+      Just (ElemName name) ->
+        [ C.attr "data-el" name ]
+
+    elemScope' = case elemScope of
+      Nothing -> []
+      Just (ElemScope scope) ->
+        [ C.attr "data-scope" scope ]
+
+  in
+    elemName' <> elemScope' <> props
 
 replaceByMap :: HashMap String String -> String -> String
 replaceByMap replaceMap str =

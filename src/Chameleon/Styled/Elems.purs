@@ -10,8 +10,9 @@ module Chameleon.Styled.Elems
 import Prelude
 
 import Chameleon (Key, Prop)
-import Chameleon.Styled.Core (class HtmlStyled, class IsStyle, styleKeyedNode, styleLeaf, styleNode)
-import Data.Symbol (class IsSymbol)
+import Chameleon.Styled.Core (class HtmlStyled, class IsStyle, ElemName(..), ElemScope(..), styleKeyedNodeNamed, styleLeafNamed, styleNodeNamed)
+import Data.Maybe (Maybe(..))
+import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Tuple.Nested (type (/\), (/\))
 import Prim.Row as Row
 import Prim.RowList (class RowToList, RowList)
@@ -34,7 +35,9 @@ instance
   ) =>
   StyledElems rowIn rowOut
   where
-  styledElems _ = styledElemsRL (Proxy :: Proxy rowlist)
+  styledElems elemScope = styledElemsRL
+    (ElemScope elemScope)
+    (Proxy :: Proxy rowlist)
 
 --------------------------------------------------------------------------------
 
@@ -45,10 +48,10 @@ class
     (rowOut :: Row Type)
   | rowlist rowIn -> rowOut
   where
-  styledElemsRL :: Proxy rowlist -> Record rowIn -> Record rowOut
+  styledElemsRL :: ElemScope -> Proxy rowlist -> Record rowIn -> Record rowOut
 
 instance StyledElemsRL RL.Nil row () where
-  styledElemsRL _ _ = {}
+  styledElemsRL _ _ _ = {}
 
 instance
   ( StyledElemsRL rowlistPrev rowIn rowOutPrev
@@ -68,19 +71,23 @@ instance
     rowOut
   where
   styledElemsRL
-    :: Proxy (RL.Cons sym typ rowlistPrev)
+    :: ElemScope
+    -> Proxy (RL.Cons sym typ rowlistPrev)
     -> Record rowIn
     -> Record rowOut
-  styledElemsRL _ recordIn =
+  styledElemsRL elemScope _ recordIn =
     let
       recordPrev :: Record rowOutPrev
-      recordPrev = styledElemsRL (Proxy :: Proxy rowlistPrev) recordIn
+      recordPrev = styledElemsRL elemScope (Proxy :: Proxy rowlistPrev) recordIn
 
       spec :: typ
       spec = Record.get proxySym recordIn
 
+      elemName :: ElemName
+      elemName = ElemName (reflectSymbol proxySym)
+
       styledElem :: Array (Prop a) -> styledElem_
-      styledElem = styledElemsOne spec
+      styledElem = styledElemsOne elemName elemScope spec
 
       styledElem_ :: styledElem_
       styledElem_ = styledElem []
@@ -103,28 +110,37 @@ class
     (styledElem :: Type)
   | typ -> styledElem
   where
-  styledElemsOne :: typ -> styledElem
+  styledElemsOne :: ElemName -> ElemScope -> typ -> styledElem
 
 instance
+  ( HtmlStyled html
+  ) =>
   StyledElemsOne
     (Array (Prop a) -> html a)
     (Array (Prop a) -> html a)
   where
-  styledElemsOne = identity
+  styledElemsOne elemName elemScope elem =
+    styleLeafNamed (Just elemName) (Just elemScope) elem unit
 
 else instance
+  ( HtmlStyled html
+  ) =>
   StyledElemsOne
     (Array (Prop a) -> Array (html a) -> html a)
     (Array (Prop a) -> Array (html a) -> html a)
   where
-  styledElemsOne = identity
+  styledElemsOne elemName elemScope elem =
+    styleNodeNamed (Just elemName) (Just elemScope) elem unit
 
 else instance
+  ( HtmlStyled html
+  ) =>
   StyledElemsOne
     (Array (Prop a) -> Array (Key /\ html a) -> html a)
     (Array (Prop a) -> Array (Key /\ html a) -> html a)
   where
-  styledElemsOne = identity
+  styledElemsOne elemName elemScope elem =
+    styleKeyedNodeNamed (Just elemName) (Just elemScope) elem unit
 
 instance
   ( IsStyle style
@@ -134,8 +150,8 @@ instance
     ((Array (Prop a) -> html a) /\ style)
     (Array (Prop a) -> html a)
   where
-  styledElemsOne (elem /\ style) =
-    styleLeaf elem style
+  styledElemsOne elemName elemScope (elem /\ style) =
+    styleLeafNamed (Just elemName) (Just elemScope) elem style
 
 else instance
   ( IsStyle style
@@ -145,8 +161,8 @@ else instance
     ((Array (Prop a) -> Array (html a) -> html a) /\ style)
     (Array (Prop a) -> Array (html a) -> html a)
   where
-  styledElemsOne (elem /\ style) =
-    styleNode elem style
+  styledElemsOne elemName elemScope (elem /\ style) =
+    styleNodeNamed (Just elemName) (Just elemScope) elem style
 
 else instance
   ( IsStyle style
@@ -156,8 +172,8 @@ else instance
     ((Array (Prop a) -> Array (Key /\ html a) -> html a) /\ style)
     (Array (Prop a) -> Array (Key /\ html a) -> html a)
   where
-  styledElemsOne (elem /\ style) =
-    styleKeyedNode elem style
+  styledElemsOne elemName elemScope (elem /\ style) =
+    styleKeyedNodeNamed (Just elemName) (Just elemScope) elem style
 
 else instance
   ( IsStyle style
@@ -167,5 +183,5 @@ else instance
     ((Array (Prop a) -> Array (Key /\ html a) -> html a) /\ style)
     (Array (Prop a) -> Array (Key /\ html a) -> html a)
   where
-  styledElemsOne (elem /\ style) =
-    styleKeyedNode elem style
+  styledElemsOne elemName elemScope (elem /\ style) =
+    styleKeyedNodeNamed (Just elemName) (Just elemScope) elem style

@@ -12,6 +12,8 @@ import Chameleon.Styled.Core
   , StyleDecl
   , StyleMap
   , StyleT
+  , ElemName(..)
+  , ElemScope(..)
   , anim
   , class HtmlStyled
   , class IsDecl
