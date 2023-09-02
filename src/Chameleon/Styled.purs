@@ -1,7 +1,7 @@
 module Chameleon.Styled (module Export) where
 
 import Chameleon.Styled.Elems
-  ( styledElems
+  ( styleElems
   ) as Export
 
 import Chameleon.Styled.Core

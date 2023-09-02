@@ -1,10 +1,10 @@
 module Chameleon.Styled.Elems
-  ( class StyledElems
-  , styledElems
-  , class StyledElemsRL
-  , styledElemsRL
-  , class StyledElemsOne
-  , styledElemsOne
+  ( class StyleElems
+  , styleElems
+  , class StyleElemsRL
+  , styleElemsRL
+  , class StyleElemsOne
+  , styleElemsOne
   ) where
 
 import Prelude
@@ -22,63 +22,63 @@ import Record as Record
 import Type.Proxy (Proxy(..))
 
 class
-  StyledElems
+  StyleElems
     (rowIn :: Row Type)
     (rowOut :: Row Type)
   | rowIn -> rowOut
   where
-  styledElems :: String -> Record rowIn -> Record rowOut
+  styleElems :: String -> Record rowIn -> Record rowOut
 
 instance
   ( RowToList rowIn rowlist
-  , StyledElemsRL rowlist rowIn rowOut
+  , StyleElemsRL rowlist rowIn rowOut
   ) =>
-  StyledElems rowIn rowOut
+  StyleElems rowIn rowOut
   where
-  styledElems elemScope = styledElemsRL
+  styleElems elemScope = styleElemsRL
     (ElemScope elemScope)
     (Proxy :: Proxy rowlist)
 
 --------------------------------------------------------------------------------
 
 class
-  StyledElemsRL
+  StyleElemsRL
     (rowlist :: RowList Type)
     (rowIn :: Row Type)
     (rowOut :: Row Type)
   | rowlist rowIn -> rowOut
   where
-  styledElemsRL :: ElemScope -> Proxy rowlist -> Record rowIn -> Record rowOut
+  styleElemsRL :: ElemScope -> Proxy rowlist -> Record rowIn -> Record rowOut
 
-instance StyledElemsRL RL.Nil row () where
-  styledElemsRL _ _ _ = {}
+instance StyleElemsRL RL.Nil row () where
+  styleElemsRL _ _ _ = {}
 
 instance
-  ( StyledElemsRL rowlistPrev rowIn rowOutPrev
+  ( StyleElemsRL rowlistPrev rowIn rowOutPrev
   , Row.Cons sym typ rowTrash rowIn
   , Row.Cons sym (Array (Prop a) -> styledElem_) rowOutPrev rowOutTmp
   , Row.Cons sym_ styledElem_ rowOutTmp rowOut
   , Sym.Append sym "_" sym_
   , Row.Lacks sym rowOutPrev
   , Row.Lacks sym_ rowOutTmp
-  , StyledElemsOne typ (Array (Prop a) -> styledElem_)
+  , StyleElemsOne typ (Array (Prop a) -> styledElem_)
   , IsSymbol sym
   , IsSymbol sym_
   ) =>
-  StyledElemsRL
+  StyleElemsRL
     (RL.Cons sym typ rowlistPrev)
     rowIn
     rowOut
   where
-  styledElemsRL
+  styleElemsRL
     :: ElemScope
     -> Proxy (RL.Cons sym typ rowlistPrev)
     -> Record rowIn
     -> Record rowOut
-  styledElemsRL elemScope _ recordIn =
+  styleElemsRL elemScope _ recordIn =
     let
       recordPrev :: Record rowOutPrev
-      recordPrev = styledElemsRL elemScope (Proxy :: Proxy rowlistPrev) recordIn
+      recordPrev = styleElemsRL elemScope (Proxy :: Proxy rowlistPrev) recordIn
 
       spec :: typ
       spec = Record.get proxySym recordIn
@@ -87,7 +87,7 @@ instance
       elemName = ElemName (reflectSymbol proxySym)
 
       styledElem :: Array (Prop a) -> styledElem_
-      styledElem = styledElemsOne elemName elemScope spec
+      styledElem = styleElemsOne elemName elemScope spec
 
       styledElem_ :: styledElem_
       styledElem_ = styledElem []
@@ -105,83 +105,83 @@ instance
 --------------------------------------------------------------------------------
 
 class
-  StyledElemsOne
+  StyleElemsOne
     (typ :: Type)
     (styledElem :: Type)
   | typ -> styledElem
   where
-  styledElemsOne :: ElemName -> ElemScope -> typ -> styledElem
+  styleElemsOne :: ElemName -> ElemScope -> typ -> styledElem
 
 instance
   ( HtmlStyled html
   ) =>
-  StyledElemsOne
+  StyleElemsOne
     (Array (Prop a) -> html a)
     (Array (Prop a) -> html a)
   where
-  styledElemsOne elemName elemScope elem =
+  styleElemsOne elemName elemScope elem =
     styleLeafNamed (Just elemName) (Just elemScope) elem unit
 
 else instance
   ( HtmlStyled html
   ) =>
-  StyledElemsOne
+  StyleElemsOne
     (Array (Prop a) -> Array (html a) -> html a)
     (Array (Prop a) -> Array (html a) -> html a)
   where
-  styledElemsOne elemName elemScope elem =
+  styleElemsOne elemName elemScope elem =
     styleNodeNamed (Just elemName) (Just elemScope) elem unit
 
 else instance
   ( HtmlStyled html
   ) =>
-  StyledElemsOne
+  StyleElemsOne
     (Array (Prop a) -> Array (Key /\ html a) -> html a)
     (Array (Prop a) -> Array (Key /\ html a) -> html a)
   where
-  styledElemsOne elemName elemScope elem =
+  styleElemsOne elemName elemScope elem =
     styleKeyedNodeNamed (Just elemName) (Just elemScope) elem unit
 
 instance
   ( IsStyle style
   , HtmlStyled html
   ) =>
-  StyledElemsOne
+  StyleElemsOne
     ((Array (Prop a) -> html a) /\ style)
     (Array (Prop a) -> html a)
   where
-  styledElemsOne elemName elemScope (elem /\ style) =
+  styleElemsOne elemName elemScope (elem /\ style) =
     styleLeafNamed (Just elemName) (Just elemScope) elem style
 
 else instance
   ( IsStyle style
   , HtmlStyled html
   ) =>
-  StyledElemsOne
+  StyleElemsOne
     ((Array (Prop a) -> Array (html a) -> html a) /\ style)
     (Array (Prop a) -> Array (html a) -> html a)
   where
-  styledElemsOne elemName elemScope (elem /\ style) =
+  styleElemsOne elemName elemScope (elem /\ style) =
     styleNodeNamed (Just elemName) (Just elemScope) elem style
 
 else instance
   ( IsStyle style
   , HtmlStyled html
   ) =>
-  StyledElemsOne
+  StyleElemsOne
     ((Array (Prop a) -> Array (Key /\ html a) -> html a) /\ style)
     (Array (Prop a) -> Array (Key /\ html a) -> html a)
   where
-  styledElemsOne elemName elemScope (elem /\ style) =
+  styleElemsOne elemName elemScope (elem /\ style) =
     styleKeyedNodeNamed (Just elemName) (Just elemScope) elem style
 
 else instance
   ( IsStyle style
   , HtmlStyled html
   ) =>
-  StyledElemsOne
+  StyleElemsOne
     ((Array (Prop a) -> Array (Key /\ html a) -> html a) /\ style)
     (Array (Prop a) -> Array (Key /\ html a) -> html a)
   where
-  styledElemsOne elemName elemScope (elem /\ style) =
+  styleElemsOne elemName elemScope (elem /\ style) =
     styleKeyedNodeNamed (Just elemName) (Just elemScope) elem style
