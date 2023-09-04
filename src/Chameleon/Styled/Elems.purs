@@ -112,7 +112,7 @@ class
   where
   styleElemsOne :: ElemName -> ElemScope -> typ -> styledElem
 
-instance
+instance leaf ::
   ( HtmlStyled html
   ) =>
   StyleElemsOne
@@ -122,7 +122,7 @@ instance
   styleElemsOne elemName elemScope elem =
     styleLeafNamed (Just elemName) (Just elemScope) elem unit
 
-else instance
+else instance node ::
   ( HtmlStyled html
   ) =>
   StyleElemsOne
@@ -132,7 +132,7 @@ else instance
   styleElemsOne elemName elemScope elem =
     styleNodeNamed (Just elemName) (Just elemScope) elem unit
 
-else instance
+else instance keyedNode ::
   ( HtmlStyled html
   ) =>
   StyleElemsOne
@@ -142,7 +142,7 @@ else instance
   styleElemsOne elemName elemScope elem =
     styleKeyedNodeNamed (Just elemName) (Just elemScope) elem unit
 
-instance
+instance leafStyled ::
   ( IsStyle style
   , HtmlStyled html
   ) =>
@@ -153,7 +153,21 @@ instance
   styleElemsOne elemName elemScope (elem /\ style) =
     styleLeafNamed (Just elemName) (Just elemScope) elem style
 
-else instance
+else instance leafStyledOpt ::
+  ( IsStyle style
+  , HtmlStyled html
+  ) =>
+  StyleElemsOne
+    (Record opt -> (Array (Prop a) -> html a) /\ style)
+    (Record opt -> Array (Prop a) -> html a)
+  where
+  styleElemsOne elemName elemScope f opt =
+    let
+      elem /\ style = f opt
+    in
+      styleLeafNamed (Just elemName) (Just elemScope) elem style
+
+else instance nodeStyled ::
   ( IsStyle style
   , HtmlStyled html
   ) =>
@@ -164,24 +178,30 @@ else instance
   styleElemsOne elemName elemScope (elem /\ style) =
     styleNodeNamed (Just elemName) (Just elemScope) elem style
 
-else instance
+else instance nodeStyledOpt ::
   ( IsStyle style
   , HtmlStyled html
   ) =>
   StyleElemsOne
-    ((Array (Prop a) -> Array (Key /\ html a) -> html a) /\ style)
-    (Array (Prop a) -> Array (Key /\ html a) -> html a)
+    (Record opt -> (Array (Prop a) -> Array (html a) -> html a) /\ style)
+    (Record opt -> Array (Prop a) -> Array (html a) -> html a)
   where
-  styleElemsOne elemName elemScope (elem /\ style) =
-    styleKeyedNodeNamed (Just elemName) (Just elemScope) elem style
+  styleElemsOne elemName elemScope f opt =
+    let
+      elem /\ style = f opt
+    in
+      styleNodeNamed (Just elemName) (Just elemScope) elem style
 
-else instance
+else instance keyedNodeStyledOpt ::
   ( IsStyle style
   , HtmlStyled html
   ) =>
   StyleElemsOne
-    ((Array (Prop a) -> Array (Key /\ html a) -> html a) /\ style)
-    (Array (Prop a) -> Array (Key /\ html a) -> html a)
+    (Record opt -> (Array (Prop a) -> Array (Key /\ html a) -> html a) /\ style)
+    (Record opt -> Array (Prop a) -> Array (Key /\ html a) -> html a)
   where
-  styleElemsOne elemName elemScope (elem /\ style) =
-    styleKeyedNodeNamed (Just elemName) (Just elemScope) elem style
+  styleElemsOne elemName elemScope f opt =
+    let
+      elem /\ style = f opt
+    in
+      styleKeyedNodeNamed (Just elemName) (Just elemScope) elem style
