@@ -47,8 +47,11 @@ import Data.Foldable (fold, foldr)
 import Data.HashMap (HashMap)
 import Data.HashMap as HashMap
 import Data.Hashable (class Hashable, hash)
+import Data.Int as Int
 import Data.Maybe (Maybe(..), isJust)
 import Data.Newtype (class Newtype, unwrap)
+import Data.Number as Num
+import Data.Ord (abs)
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as Str
 import Data.Tuple (Tuple(..))
@@ -108,8 +111,8 @@ replaceIds replaceMap (StyleDecl styleDecls) =
   replaceEntry (selector /\ strs) =
     selector /\ map (replaceByMap replaceMap) strs
 
-getStyleMap :: Style -> StyleMap /\ Style
-getStyleMap style@(Style { declarations, animations }) =
+getStyleMap :: Maybe ElemName -> Style -> StyleMap /\ Style
+getStyleMap elemName style@(Style { declarations, animations }) =
   styleMap /\ newStyle
   where
   styleMap :: StyleMap
@@ -146,10 +149,10 @@ getStyleMap style@(Style { declarations, animations }) =
       animInfo
 
   mkHashedAnimName :: AnimDecl -> HashedAnimName
-  mkHashedAnimName animDecl = HashedAnimName (prefixAnim <> show (hash animDecl))
+  mkHashedAnimName animDecl = HashedAnimName (prefixAnim <> niceHash animDecl)
 
   mkClassName :: StyleDecl -> ClassName
-  mkClassName styleDecl = ClassName (prefix <> show (hash styleDecl))
+  mkClassName styleDecl = ClassName (prefix <> niceHash styleDecl)
 
   newStyle :: Style
   newStyle =
@@ -162,8 +165,39 @@ getStyleMap style@(Style { declarations, animations }) =
             , classes = HashMap.keys decl
             }
 
-  prefix = "hashed"
-  prefixAnim = "hashed-anim"
+  prefix =
+    ( case elemName of
+        Just (ElemName elemName') -> elemName'
+        Nothing -> "hashed"
+    ) <> "-"
+
+  prefixAnim = prefix <> "-anim-"
+
+niceHash :: forall a. Hashable a => a -> String
+niceHash val =
+  let
+    numericHash :: Int
+    numericHash = hash val
+
+    stringHash :: String
+    stringHash =
+      if numericHash < 0 then
+        show (abs numericHash) <> "0"
+      else
+        show numericHash <> "1"
+
+    fixedLength :: Int
+    fixedLength = 10
+
+    length :: Int
+    length = Str.length stringHash
+
+    times :: Int
+    times = Int.ceil (Int.toNumber fixedLength / Int.toNumber length)
+  in
+    Array.replicate times stringHash
+      # fold
+      # Str.take fixedLength
 
 printStyleMap :: StyleMap -> String
 printStyleMap (StyleMap styleMap) =
@@ -324,7 +358,7 @@ styleNodeNamed elemName elemScope elem someStyle props children =
       children
   where
   oldStyle = toStyle someStyle
-  styleMap /\ newStyle = getStyleMap oldStyle
+  styleMap /\ newStyle = getStyleMap elemName oldStyle
 
 styleLeaf
   :: forall html style a
@@ -353,7 +387,7 @@ styleLeafNamed elemName elemScope elem someStyle props =
       (addIds elemName elemScope $ addStyle newStyle props)
   where
   oldStyle = toStyle someStyle
-  styleMap /\ newStyle = getStyleMap oldStyle
+  styleMap /\ newStyle = getStyleMap elemName oldStyle
 
 styleKeyedNode
   :: forall html style a
@@ -383,7 +417,7 @@ styleKeyedNodeNamed elemName elemScope elem someStyle props children =
       children
   where
   oldStyle = toStyle someStyle
-  styleMap /\ newStyle = getStyleMap oldStyle
+  styleMap /\ newStyle = getStyleMap elemName oldStyle
 
 styleKeyedLeaf
   :: forall html style a
@@ -411,7 +445,7 @@ styleKeyedLeafNamed elemName elemScope elem someStyle props =
       (addIds elemName elemScope $ addStyle newStyle props)
   where
   oldStyle = toStyle someStyle
-  styleMap /\ newStyle = getStyleMap oldStyle
+  styleMap /\ newStyle = getStyleMap elemName oldStyle
 
 -------------------------------------------------------------------------------
 -- Instances
@@ -444,17 +478,29 @@ derive newtype instance Hashable StyleDecl
 derive newtype instance Semigroup StyleDecl
 derive instance Eq StyleDecl
 
+derive instance Newtype ElemName _
+derive instance Eq ElemName
+
 instance IsStyle Style where
   toStyle = identity
 
 instance IsStyle String where
   toStyle str = mempty
-    # \(Style rec) -> Style $ rec { inline = [ InlineStyle str ] }
+    # \(Style rec) -> Style $ rec { declarations = [ decl str ] }
 
 instance IsStyle Unit where
   toStyle _ = mempty
 
-instance IsStyle a => IsStyle (Array a) where
+instance IsStyle (Array String) where
+  toStyle xs = mempty
+    # \(Style rec) -> Style $ rec
+        { declarations =
+            [ StyleDecl
+                [ Nothing /\ map mergeDecl xs ]
+            ]
+        }
+
+else instance IsStyle a => IsStyle (Array a) where
   toStyle xs = fold (toStyle <$> xs)
 
 instance IsStyle ClassName where
@@ -532,8 +578,9 @@ addIds elemName elemScope props =
 
     elemScope' = case elemScope of
       Nothing -> []
-      Just (ElemScope scope) ->
+      Just (ElemScope scope) | elemName == Just (ElemName "root") ->
         [ C.attr "data-scope" scope ]
+      _ -> []
 
   in
     elemName' <> elemScope' <> props
