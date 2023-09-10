@@ -22,6 +22,7 @@ import Prim.Row as Row
 import Prim.RowList (class RowToList, RowList)
 import Prim.RowList as RL
 import Prim.Symbol as Sym
+import Prim.TypeError (class Warn, Text)
 import Record as Record
 import Type.Proxy (Proxy(..))
 
@@ -278,6 +279,7 @@ else instance keyedNodeStyledOpt ::
 else instance onlyStyle ::
   ( IsStyle style
   , HtmlStyled html
+  , Warn (Text "implicit div")
   ) =>
   StyleElemsOne
     (style)

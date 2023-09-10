@@ -50,7 +50,6 @@ import Data.Hashable (class Hashable, hash)
 import Data.Int as Int
 import Data.Maybe (Maybe(..), isJust)
 import Data.Newtype (class Newtype, unwrap)
-import Data.Number as Num
 import Data.Ord (abs)
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as Str
@@ -506,6 +505,11 @@ else instance IsStyle a => IsStyle (Array a) where
 instance IsStyle ClassName where
   toStyle c = mempty
     # \(Style rec) -> Style $ rec { classes = [ c ] }
+
+instance IsStyle a => IsStyle (Maybe a) where
+  toStyle = case _ of
+    Just x -> toStyle x
+    Nothing -> mempty
 
 instance IsStyle StyleDecl where
   toStyle c = mempty
